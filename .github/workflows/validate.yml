@@ -1,0 +1,26 @@
+name: Check fuel_prices.json
+
+# Runs on every pull request and push, so a broken or implausible price
+# file shows a red cross before anyone merges it.
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check fuel_prices.json against the live version on main
+        run: |
+          git show origin/main:fuel_prices.json > /tmp/base.json 2>/dev/null || echo '{}' > /tmp/base.json
+          python validate.py fuel_prices.json --base /tmp/base.json

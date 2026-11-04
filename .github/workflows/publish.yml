@@ -1,0 +1,50 @@
+name: Publish fuel_prices.json
+
+# Publishes fuel_prices.json to
+# https://nicos0351.github.io/tank-tracking-data/fuel_prices.json
+# every time main changes - but only after the same checks as
+# "Check fuel_prices.json" pass, so a broken file is never published.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check fuel_prices.json
+        run: |
+          git show HEAD~1:fuel_prices.json > /tmp/base.json 2>/dev/null || echo '{}' > /tmp/base.json
+          python validate.py fuel_prices.json --base /tmp/base.json
+      - name: Prepare the site
+        run: |
+          mkdir _site
+          cp fuel_prices.json _site/fuel_prices.json
+          touch _site/.nojekyll
+          printf '<!doctype html><meta charset="utf-8"><title>Tank &amp; Tracking data</title><p>Monthly fuel prices for the Tank &amp; Tracking app: <a href="fuel_prices.json">fuel_prices.json</a></p>\n' > _site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
